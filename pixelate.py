@@ -9,7 +9,7 @@ homedir = os.getenv("HOME")
 
 class main_image:
     
-    def __init__(self, im_path=None, npixels_x=55, offset=0.35):
+    def __init__(self, im_path=None, npixels_x=55, offset=0.35, sharpen=False):
         self.im_path = im_path
         
         self.img_only = Image.open(self.im_path)
@@ -19,8 +19,8 @@ class main_image:
         self.width = np.shape(self.img_array)[1]
         
         self.npixels_x = int(npixels_x)
-        
         self.offset = float(offset)
+        self.sharpen = bool(sharpen)
         
     def get_scaling_fraction(self):
 
@@ -46,6 +46,15 @@ class main_image:
                                                resample=Image.Resampling.BILINEAR)
         self.img_scaled_array = np.asarray(self.img_scaled)
         
+        if self.sharpen:
+            self.sharpen_image()
+
+    def sharpen_image(self):
+        #create the sharpening kernel 
+        kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]]) 
+        #sharpen the image 
+        self.img_scaled_array = cv2.filter2D(self.img_scaled_array, -1, kernel)   
+                    
     def add_grid(self):
      
         self.xticks = []
@@ -69,9 +78,8 @@ class main_image:
                 self.xlabels.append(n)
             if (n+1)%5==0:
                 self.xticks.append(n+self.offset)
-                self.xlabels.append(n+1)        
-        
-            
+                self.xlabels.append(n+1)         
+    
     def plot_fig(self, savefig=False):
         im_path_split = self.im_path.split('/')[-1]
         im_name = im_path_split.split('.')
@@ -94,13 +102,12 @@ class main_image:
     def run_all_func(self):
         self.get_scaling_fraction()
         self.scale_image()
-        self.plot_fig()
-        
+        self.plot_fig()     
         
 if __name__ == '__main__':    
 
     if '-h' in sys.argv or '--help' in sys.argv:
-        print("Usage: %s [-im_path full_path_to_image] [-nx number_of_pixels_along_xaxis_(integer)] [-grid_offset optional_grid_offset_(float)]")
+        print("Usage: %s [-im_path full_path_to_image] [-nx number_of_pixels_along_xaxis_(integer)] [-grid_offset optional_grid_offset_(float)] [-sharpen (will use k-means clustering to sharpen foreground outline)]")
         sys.exit(1)
     
     if '-im_path' in sys.argv:
@@ -117,6 +124,29 @@ if __name__ == '__main__':
     else:
         offset = 0.5
         
-    img_class = main_image(im_path=im_path, npixels_x=npixels_x, offset=offset)
+    if '-sharpen' in sys.argv:
+        import cv2
+        sharpen=True
+    else:
+        sharpen=False
+        
+    img_class = main_image(im_path=im_path, npixels_x=npixels_x, offset=offset, sharpen=sharpen)
     img_class.run_all_func()
+    print('''
     
+    DISCLAIMER NOTES:
+        
+        --- Be sure to use the original image as a color reference. Indeed, the
+            -sharpen argument might produce some discoloration.
+        
+        --- The author does not recommend feeding in an already "pixelated" image
+            into the program, as the pixel colors will not be as well-defined as 
+            the original image. Rather, use the pixelated image AS the pixelated
+            image and draw like the wind (but better and more controlled).
+
+        --- Is the quality too...pixelated? Tweak the -nx parameter!
+        
+        --- Does the grid appear to be offset? Tweak the -offset parameter! 
+            Try small floats first, such as 0.35 or 0.50 (the latter is the default).
+        
+          ''')
