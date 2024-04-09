@@ -10,7 +10,7 @@ homedir = os.getenv("HOME")
 
 class main_image:
     
-    def __init__(self, im_path=None, npixels_x=55, offset=0.35):
+    def __init__(self, im_path=None, npixels_x=55, offset=0.35, val=8):
         self.im_path = im_path
         
         self.img_only = Image.open(self.im_path)
@@ -21,6 +21,7 @@ class main_image:
         
         self.npixels_x = int(npixels_x)
         self.offset = float(offset)
+        self.val = int(val)
         
     def get_scaling_fraction(self):
 
@@ -46,11 +47,12 @@ class main_image:
                                                resample=Image.Resampling.BILINEAR)
         self.img_scaled_array = np.asarray(self.img_scaled)
         
-        self.sharpen_image()
+        self.sharpen_image(val=self.val)
 
-    def sharpen_image(self):
+    def sharpen_image(self,val):
         #create the sharpening kernel 
-        kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]]) 
+        matrix = np.array([[0, -1, 0], [-1, val, -1], [0, -1, 0]]) 
+        kernel = matrix/np.sum(matrix)
         #sharpen the image 
         self.img_scaled_array_sharp = cv2.filter2D(self.img_scaled_array, -1, kernel)   
                     
@@ -78,31 +80,6 @@ class main_image:
             if (n+1)%10==0:
                 self.xticks.append(n+self.offset)
                 self.xlabels.append(n+1)         
-    
-    '''
-    def plot_fig(self, savefig=False):
-        im_path_split = self.im_path.split('/')[-1]
-        im_name = im_path_split.split('.')
-        
-        fig, ax = plt.subplots()
-        
-        #flipping image and changing axis origin --> ensures y-axis increases from bottom to top
-        #adapted from https://stackoverflow.com/questions/56916638/invert-the-y-axis-of-an-image-without-flipping-the-image-upside-down
-        plt.imshow(np.flipud(self.img_scaled_array), origin='lower')
-        self.add_grid(im=self.img_scaled_array)
-        
-        ax.set_xticks(self.xticks,labels=self.xlabels)
-        ax.set_yticks(self.yticks,labels=self.ylabels)  
-        
-        if self.sharpen:
-            plt.savefig(f'{homedir}/Desktop/{im_name[0]}_pxd_sharp.png',bbox_inches='tight',
-                    pad_inches=0.2,dpi=200)
-        else:    
-            plt.savefig(f'{homedir}/Desktop/{im_name[0]}_pxd.png',bbox_inches='tight',
-                    pad_inches=0.2,dpi=200)
-        
-        print('Image saved to Desktop.')
-    '''
     
     def plot_fig(self, savefig=False):
         im_path_split = self.im_path.split('/')[-1]
@@ -138,7 +115,7 @@ class main_image:
 if __name__ == '__main__':    
 
     if '-h' in sys.argv or '--help' in sys.argv:
-        print("Usage: %s [-im_path full_path_to_image] [-nx number_of_pixels_along_xaxis_(integer)] [-grid_offset optional_grid_offset_(float)]")
+        print("Usage: %s [-im_path full_path_to_image] [-nx number_of_pixels_along_xaxis_(integer)] [-grid_offset optional_grid_offset_(float)] [-sharp_param optional_sharpness_parameter(integer)]")
         sys.exit(1)
     
     if '-im_path' in sys.argv:
@@ -154,8 +131,12 @@ if __name__ == '__main__':
         offset = sys.argv[p+1]
     else:
         offset = 0.5
+    
+    if '-sharp_param' in sys.argv:
+        p = sys.argv.index('-sharp_param')
+        sharp_param = int(sys.argv[p+1])
         
-    img_class = main_image(im_path=im_path, npixels_x=npixels_x, offset=offset)
+    img_class = main_image(im_path=im_path, npixels_x=npixels_x, offset=offset, val=sharp_param)
     img_class.run_all_func()
     print('''
     
@@ -163,7 +144,9 @@ if __name__ == '__main__':
         
         --- Be sure to use the original image or even the leftmost panel as a color 
             reference. Indeed, the sharpening (right image panel) might produce 
-            some discoloration.
+            some discoloration. One option is to change the sharp_param -- it should
+            be an integer value, preferably between 5 and 8. The default value is 5, 
+            which seems to yield maximum sharpness but minimal original color preservation.
         
         --- The author does not recommend feeding in an already "pixelated" image
             into the program, as the pixel colors will not be as well-defined as 
