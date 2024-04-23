@@ -2,7 +2,7 @@ import sys
 from matplotlib import pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageChops
 import cv2
 
 import os
@@ -10,7 +10,7 @@ homedir = os.getenv("HOME")
 
 class main_image:
     
-    def __init__(self, im_path=None, npixels_x=55, offset=0.35, val=8):
+    def __init__(self, im_path=None, npixels_x=55, offset=0.35, val=8, trim=False):
         self.im_path = im_path
         
         self.img_only = Image.open(self.im_path)
@@ -22,6 +22,7 @@ class main_image:
         self.npixels_x = int(npixels_x)
         self.offset = float(offset)
         self.val = int(val)
+        self.trim = bool(trim)
         
     def get_scaling_fraction(self):
 
@@ -55,7 +56,15 @@ class main_image:
         kernel = matrix/np.sum(matrix)
         #sharpen the image 
         self.img_scaled_array_sharp = cv2.filter2D(self.img_scaled_array, -1, kernel)   
-                    
+    
+    def trim_image(self):
+        bg = Image.new(self.img_only.mode, self.img_only.size, self.img_only.getpixel((0,0)))
+        diff = ImageChops.difference(self.img_only, bg)
+        diff = ImageChops.add(diff, diff, 2.0, -100)
+        bbox = diff.getbbox()
+        if bbox:
+            self.img_only = self.img_only.crop(bbox)
+    
     def add_grid(self,im,axes):
      
         self.xticks = []
@@ -108,6 +117,8 @@ class main_image:
     
     
     def run_all_func(self):
+        if self.trim:
+            self.trim_image()
         self.get_scaling_fraction()
         self.scale_image()
         self.plot_fig()     
@@ -115,7 +126,7 @@ class main_image:
 if __name__ == '__main__':    
 
     if '-h' in sys.argv or '--help' in sys.argv:
-        print("Usage: %s [-im_path full_path_to_image] [-nx number_of_pixels_along_xaxis_(integer)] [-grid_offset optional_grid_offset_(float)] [-sharp_param optional_sharpness_parameter(integer)]")
+        print("Usage: %s [-im_path full_path_to_image] [-nx number_of_pixels_along_xaxis_(integer)] [-grid_offset optional_grid_offset_(float)] [-sharp_param optional_sharpness_parameter(integer)] [-trim] [-hide_disclaimer]")
         sys.exit(1)
     
     if '-im_path' in sys.argv:
@@ -135,27 +146,45 @@ if __name__ == '__main__':
     if '-sharp_param' in sys.argv:
         p = sys.argv.index('-sharp_param')
         sharp_param = int(sys.argv[p+1])
-        
-    img_class = main_image(im_path=im_path, npixels_x=npixels_x, offset=offset, val=sharp_param)
-    img_class.run_all_func()
-    print('''
     
-    DISCLAIMER NOTES:
+    if '-trim' in sys.argv:
+        trim = True
+    else:
+        trim = False
         
-        --- Be sure to use the original image or even the leftmost panel as a color 
-            reference. Indeed, the sharpening (right image panel) might produce 
-            some discoloration. One option is to change the sharp_param -- it should
-            be an integer value, preferably between 5 and 8. The default value is 5, 
-            which seems to yield maximum sharpness but minimal original color preservation.
+    if '-hide_disclaimer' in sys.argv:
+        hide = True
+    else:
+        hide = False
         
-        --- The author does not recommend feeding in an already "pixelated" image
-            into the program, as the pixel colors will not be as well-defined as 
-            the original image. Rather, use the pixelated image AS the pixelated
-            image and draw like the wind (but better and more controlled).
+    img_class = main_image(im_path=im_path, npixels_x=npixels_x, offset=offset, val=sharp_param, trim=trim)
+    img_class.run_all_func()
+    
+    if not hide:
+        print('''
 
-        --- Is the quality too...pixelated? Tweak the -nx parameter!
-        
-        --- Does the grid appear to be offset? Tweak the -offset parameter! 
-            Try small floats first, such as 0.35 or 0.50 (the latter is the default).
-        
-          ''')
+        DISCLAIMER NOTES:
+
+            --- Be sure to use the original image or even the leftmost panel as a color 
+                reference. Indeed, the sharpening (right image panel) might produce 
+                some discoloration. One option is to change the sharp_param -- it should
+                be an integer value, preferably between 5 and 8. The default value is 5, 
+                which seems to yield maximum sharpness but minimal original color preservation.
+
+            --- The author does not recommend feeding in an already "pixelated" image
+                into the program, as the pixel colors will not be as well-defined as 
+                the original image. Rather, use the pixelated image AS the pixelated
+                image and draw like the wind (but better and more controlled).
+
+            --- Is the quality too...pixelated? Tweak the -nx parameter!
+
+            --- Does the grid appear to be offset? Tweak the -offset parameter! 
+                Try small floats first, such as 0.35 or 0.50 (the latter is the default).
+
+            --- If there too much white space about the perimeter? Try the -trim parameter!
+                Be aware that -trim works best cases with WHITE SPACE, or with a non-black uniform
+                background.
+            
+            --- Note that -trim also runs before the pixelation process, meaning that -nx is applied
+                to anywhere the white space is not. Be sure to adjust syour -nx value accordingly.
+              ''')
