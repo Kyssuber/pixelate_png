@@ -63,7 +63,8 @@ class main_image:
         diff = ImageChops.add(diff, diff, 2.0, -100)
         bbox = diff.getbbox()
         if bbox:
-            self.img_only = self.img_only.crop(bbox)
+            self.img_only = self.img_only.crop(bbox)  
+            self.img_array = np.asarray(self.img_only)
     
     def add_grid(self,im,axes):
      
@@ -93,22 +94,17 @@ class main_image:
     def plot_fig(self, savefig=False):
         im_path_split = self.im_path.split('/')[-1]
         im_name = im_path_split.split('.')
-        
-        images = [self.img_scaled_array,self.img_scaled_array_sharp]
-        titles = ['Pixelated Image','Pixelated Image (Sharpened)']
+
+        titles = ['Unpixelated Image','Pixelated Image (Sharpened)']
         
         fig, (ax1,ax2) = plt.subplots(1,2, figsize=(20,10))
         fig.subplots_adjust(wspace=0.1)
         
-        for i in range(len(images)):
-            ax1.imshow(np.flipud(self.img_scaled_array), origin='lower')
-            self.add_grid(im=self.img_scaled_array,axes=ax1)
-            ax1.set_xticks(self.xticks,labels=self.xlabels)
-            ax1.set_yticks(self.yticks,labels=self.ylabels) 
-            ax2.imshow(np.flipud(self.img_scaled_array_sharp), origin='lower')
-            self.add_grid(im=self.img_scaled_array_sharp,axes=ax2)
-            ax2.set_xticks(self.xticks,labels=self.xlabels)
-            ax2.set_yticks(self.yticks,labels=self.ylabels) 
+        ax1.imshow(np.flipud(self.img_array), origin='lower') 
+        ax2.imshow(np.flipud(self.img_scaled_array_sharp), origin='lower')
+        self.add_grid(im=self.img_scaled_array_sharp,axes=ax2)
+        ax2.set_xticks(self.xticks,labels=self.xlabels)
+        ax2.set_yticks(self.yticks,labels=self.ylabels) 
             
         plt.savefig(f'{homedir}/Desktop/{im_name[0]}_pxd_sharp.png',bbox_inches='tight',
                     pad_inches=0.2,dpi=200)    
