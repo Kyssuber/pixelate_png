@@ -8,4 +8,4 @@ Optional args will be printed with brief descriptions. <br>
 The two variants of this script reflect whether cv2 or PIL is used for the pixelation process. Both yield marginally different results with respect to outlining and decision-making for finer details/features. <br>
 If you have a peculiar interest in generating discolored pixel images, I invite you to try the draft version of the former scripts: <br>
 `python pixelate_PIL_bilinear.py -h`, <br>
-which, as the label suggests, uses bilinear rather than NEAREST resampling.
+which, as the label suggests, uses bilinear rather than NEAREST resampling. The idea of bilinear is that the output will generally be smoother, such that transitions from black to white will instead be black to slightly less black to slightly less white to white (usw). Given I was not familiar with this critical information at the time, I added multiple incompetent tricks to eliminate that smoothness characteristic, including a sharpness matrix. If the smoothness intrigues you, then pop off or whatever the younglings utter as slang these days.
