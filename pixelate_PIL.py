@@ -44,7 +44,7 @@ class main_image:
 
         #resize smoothly down to desired number of pixels for x (55*frac_w) and y (55*frac_h)
         self.img_scaled = self.img_only.resize((int(self.npixels_x*frac_w),int(self.npixels_x*frac_h)), 
-                                               resample=Image.NEAREST)
+                                        resample=Image.NEAREST) #NEAREST, BILINEAR, BICUBIC, LANCZOS, BOX, HAMMING
         self.img_scaled_array = np.asarray(self.img_scaled)  
     
     def trim_image(self):

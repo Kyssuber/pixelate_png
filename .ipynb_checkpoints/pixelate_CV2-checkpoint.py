@@ -44,7 +44,7 @@ class main_image:
 
         #resize smoothly down to desired number of pixels for x (55*frac_w) and y (55*frac_h)
         self.img_scaled = cv2.resize(self.img_array, (int(self.npixels_x*self.frac_w),int(self.npixels_x*self.frac_h)), 
-                                    interpolation=cv2.INTER_NEAREST)
+                                    interpolation=cv2.INTER_NEAREST)   #NEAREST, LINEAR, CUBIC, AREA, LANCZOS4
         self.img_scaled_array = np.asarray(self.img_scaled)
             
     def trim_image(self):
