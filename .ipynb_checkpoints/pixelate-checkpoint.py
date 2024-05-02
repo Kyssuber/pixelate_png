@@ -10,7 +10,7 @@ homedir = os.getenv("HOME")
 
 class main_image:
     
-    def __init__(self, im_path=None, npixels_x=90, offset=0.35, trim=False):
+    def __init__(self, im_path=None, npixels_x=55, offset=0.5, trim=False):
         self.im_path = im_path
         
         self.img_only = Image.open(self.im_path)
@@ -22,9 +22,6 @@ class main_image:
         self.npixels_x = int(npixels_x)
         self.offset = float(offset)
         self.trim = bool(trim)
-        
-        #this function is mine; it helps ensure that pixel cells are square- and not rectangular-shaped
-        self.frac_h, self.frac_w = self.get_scaling_fraction()
         
     def get_scaling_fraction(self):
 
@@ -41,12 +38,23 @@ class main_image:
             return None
     
     def scale_image(self):
+        
+        #this function is mine; it helps ensure that pixel cells are square- and not rectangular-shaped
+        frac_h, frac_w = self.get_scaling_fraction()
 
-        #resize smoothly down to desired number of pixels for x (55*frac_w) and y (55*frac_h)
-        self.img_scaled = cv2.resize(self.img_array, (int(self.npixels_x*self.frac_w),int(self.npixels_x*self.frac_h)), 
-                                    interpolation=cv2.INTER_NEAREST)   #NEAREST, LINEAR, CUBIC, AREA, LANCZOS4
-        self.img_scaled_array = np.asarray(self.img_scaled)
-            
+        #resize smoothly down to desired number of pixels for x (nx*frac_w) and y (nx*frac_h)
+        self.img_scaled = self.img_only.resize((int(self.npixels_x*frac_w),int(self.npixels_x*frac_h)), 
+                                        resample=Image.BILINEAR) #NEAREST, BILINEAR, BICUBIC, LANCZOS, BOX, HAMMING
+        self.img_scaled_array = np.asarray(self.img_scaled)  
+        
+        self.img_scaled = self.img_only.resize((int(self.npixels_x*frac_w),int(self.npixels_x*frac_h)), 
+                                        resample=Image.NEAREST)
+        self.img_scaled_array_pil = np.asarray(self.img_scaled)
+        
+        self.img_scaled = cv2.resize(self.img_array, (int(self.npixels_x*frac_w),int(self.npixels_x*frac_h)), 
+                                    interpolation=cv2.INTER_NEAREST)
+        self.img_scaled_array_cv2 = np.asarray(self.img_scaled)
+
     def trim_image(self):
         bg = Image.new(self.img_only.mode, self.img_only.size, self.img_only.getpixel((0,0)))
         diff = ImageChops.difference(self.img_only, bg)
@@ -85,16 +93,32 @@ class main_image:
         im_path_split = self.im_path.split('/')[-1]
         im_name = im_path_split.split('.')
 
-        titles = ['Unpixelated Image','Pixelated Image']
+        titles = ['Original Image','Pixelated Image (Bilinear)', 
+                  'Pixelated Image (PIL, Nearest)', 'Pixelated Image (CV2, Nearest)']
         
-        fig, (ax1,ax2) = plt.subplots(1,2, figsize=(20,10))
-        fig.subplots_adjust(wspace=0.1)
+        fig, axes = plt.subplots(2,2, figsize=(25,18))
+        ax1, ax2, ax3, ax4 = axes.flatten()
+        fig.subplots_adjust(wspace=0.1, hspace=0.1)
         
         ax1.imshow(np.flipud(self.img_array), origin='lower') 
         ax2.imshow(np.flipud(self.img_scaled_array), origin='lower')
+        ax3.imshow(np.flipud(self.img_scaled_array_pil), origin='lower')
+        ax4.imshow(np.flipud(self.img_scaled_array_cv2), origin='lower')
+        
         self.add_grid(im=self.img_scaled_array,axes=ax2)
-        ax2.set_xticks(self.xticks,labels=self.xlabels)
-        ax2.set_yticks(self.yticks,labels=self.ylabels) 
+        self.add_grid(im=self.img_scaled_array_pil,axes=ax3)
+        self.add_grid(im=self.img_scaled_array_cv2,axes=ax4)
+        
+        ax2.set_xticks(self.xticks,labels=self.xlabels,fontsize=20)
+        ax2.set_yticks(self.yticks,labels=self.ylabels,fontsize=20) 
+        ax3.set_xticks(self.xticks,labels=self.xlabels,fontsize=22)
+        ax3.set_yticks(self.yticks,labels=self.ylabels,fontsize=20)
+        ax4.set_xticks(self.xticks,labels=self.xlabels,fontsize=20)
+        ax4.set_yticks(self.yticks,labels=self.ylabels,fontsize=20)
+        
+        ax=[ax1,ax2,ax3,ax4]
+        for i in range(len(ax)):
+            ax[i].set_title(titles[i],fontsize=25)
             
         plt.savefig(f'{homedir}/Desktop/{im_name[0]}_pxd.png',bbox_inches='tight',
                     pad_inches=0.2,dpi=200)    
