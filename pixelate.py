@@ -109,6 +109,8 @@ class main_image:
         self.add_grid(im=self.img_scaled_array_pil,axes=ax3)
         self.add_grid(im=self.img_scaled_array_cv2,axes=ax4)
         
+        ax1.set_xticks(fontsize=20)
+        ax1.set_yticks(fontsize=20)
         ax2.set_xticks(self.xticks,labels=self.xlabels,fontsize=20)
         ax2.set_yticks(self.yticks,labels=self.ylabels,fontsize=20) 
         ax3.set_xticks(self.xticks,labels=self.xlabels,fontsize=22)
