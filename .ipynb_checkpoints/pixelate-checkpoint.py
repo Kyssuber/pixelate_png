@@ -15,16 +15,16 @@ class main_image:
         
         self.img_only = Image.open(self.im_path)
         self.img_array = np.asarray(self.img_only)
-
-        self.height = np.shape(self.img_array)[0]
-        self.width = np.shape(self.img_array)[1]
         
         self.npixels_x = int(npixels_x)
         self.offset = float(offset)
         self.trim = bool(trim)
         
     def get_scaling_fraction(self):
-
+        
+        self.height = np.shape(self.img_array)[0]
+        self.width = np.shape(self.img_array)[1]
+        
         if self.height>self.width:
             fraction = self.width/self.height
             return 1, fraction
@@ -40,29 +40,72 @@ class main_image:
     def scale_image(self):
         
         #this function is mine; it helps ensure that pixel cells are square- and not rectangular-shaped
-        frac_h, frac_w = self.get_scaling_fraction()
+        self.frac_h, self.frac_w = self.get_scaling_fraction()
 
         #resize smoothly down to desired number of pixels for x (nx*frac_w) and y (nx*frac_h)
-        self.img_scaled = self.img_only.resize((int(self.npixels_x*frac_w),int(self.npixels_x*frac_h)), 
-                                        resample=Image.BILINEAR) #NEAREST, BILINEAR, BICUBIC, LANCZOS, BOX, HAMMING
+        #resample options: NEAREST, BILINEAR, BICUBIC, LANCZOS, BOX, HAMMING
+        self.img_scaled = self.img_only.resize((int(self.npixels_x*self.frac_w),
+                                                int(self.npixels_x*self.frac_h)), 
+                                                resample=Image.BILINEAR) 
         self.img_scaled_array = np.asarray(self.img_scaled)  
         
-        self.img_scaled = self.img_only.resize((int(self.npixels_x*frac_w),int(self.npixels_x*frac_h)), 
-                                        resample=Image.NEAREST)
+        self.img_scaled = self.img_only.resize((int(self.npixels_x*self.frac_w),
+                                                int(self.npixels_x*self.frac_h)), 
+                                                resample=Image.NEAREST)
+        
         self.img_scaled_array_pil = np.asarray(self.img_scaled)
         
-        self.img_scaled = cv2.resize(self.img_array, (int(self.npixels_x*frac_w),int(self.npixels_x*frac_h)), 
+        self.img_scaled = cv2.resize(self.img_array, 
+                                    (int(self.npixels_x*self.frac_w),int(self.npixels_x*self.frac_h)), 
                                     interpolation=cv2.INTER_NEAREST)
         self.img_scaled_array_cv2 = np.asarray(self.img_scaled)
 
+    #this appears to only be effective for certain images.
+    '''
     def trim_image(self):
         bg = Image.new(self.img_only.mode, self.img_only.size, self.img_only.getpixel((0,0)))
         diff = ImageChops.difference(self.img_only, bg)
         diff = ImageChops.add(diff, diff, 2.0, -100)
         bbox = diff.getbbox()
+        print(bbox)
+        print()
         if bbox:
             self.img_only = self.img_only.crop(bbox)  
             self.img_array = np.asarray(self.img_only)
+    '''
+    
+    #courtesy of chatgpt...more generalized, for whatever reason.
+    def trim_image(self):
+
+        #reshape the array to (number of pixels, number of channels)
+        pixels = self.img_array.reshape(-1, self.img_array.shape[2])
+
+        #find the most common color (assumed to be the background color)
+        unique_colors, counts = np.unique(pixels, axis=0, return_counts=True)
+        background_color = unique_colors[counts.argmax()]
+
+        #create new image with the background color (only that background, I assume)
+        bg = Image.new(self.img_only.mode, self.img_only.size, tuple(background_color))
+
+        #compute the difference (i.e., subtract background from image)
+        diff = ImageChops.difference(self.img_only, bg)
+
+        #convert the difference to grayscale
+        diff = diff.convert('L')
+
+        # Threshold the difference image to create a binary image
+        threshold = 1  # Adjust threshold value as needed
+        diff = diff.point(lambda p: p > threshold and 255)
+
+        #get the bounding box of the non-background region (in rectangular shape)
+        bbox = diff.getbbox()
+
+        if bbox:
+            self.img_only = self.img_only.crop(bbox)
+            self.img_array = np.asarray(self.img_only)
+        else:
+            print("No content found to trim")
+
     
     def add_grid(self,im,axes):
      
@@ -96,9 +139,9 @@ class main_image:
         titles = ['Original Image','Pixelated Image (Bilinear)', 
                   'Pixelated Image (PIL, Nearest)', 'Pixelated Image (CV2, Nearest)']
         
-        fig, axes = plt.subplots(2,2, figsize=(25,18))
+        fig, axes = plt.subplots(2,2, figsize=(int(self.frac_w*40),int(self.frac_h*40)))
         ax1, ax2, ax3, ax4 = axes.flatten()
-        fig.subplots_adjust(wspace=0.1, hspace=0.1)
+        fig.subplots_adjust(wspace=0.06, hspace=0.1)
         
         ax1.imshow(np.flipud(self.img_array), origin='lower') 
         ax2.imshow(np.flipud(self.img_scaled_array), origin='lower')
@@ -109,14 +152,13 @@ class main_image:
         self.add_grid(im=self.img_scaled_array_pil,axes=ax3)
         self.add_grid(im=self.img_scaled_array_cv2,axes=ax4)
         
-        ax1.set_xticks(fontsize=20)
-        ax1.set_yticks(fontsize=20)
-        ax2.set_xticks(self.xticks,labels=self.xlabels,fontsize=20)
-        ax2.set_yticks(self.yticks,labels=self.ylabels,fontsize=20) 
-        ax3.set_xticks(self.xticks,labels=self.xlabels,fontsize=22)
-        ax3.set_yticks(self.yticks,labels=self.ylabels,fontsize=20)
-        ax4.set_xticks(self.xticks,labels=self.xlabels,fontsize=20)
-        ax4.set_yticks(self.yticks,labels=self.ylabels,fontsize=20)
+        ax1.tick_params(labelsize=18)
+        ax2.set_xticks(self.xticks,labels=self.xlabels,fontsize=18)
+        ax2.set_yticks(self.yticks,labels=self.ylabels,fontsize=18) 
+        ax3.set_xticks(self.xticks,labels=self.xlabels,fontsize=18)
+        ax3.set_yticks(self.yticks,labels=self.ylabels,fontsize=18)
+        ax4.set_xticks(self.xticks,labels=self.xlabels,fontsize=18)
+        ax4.set_yticks(self.yticks,labels=self.ylabels,fontsize=18)
         
         ax=[ax1,ax2,ax3,ax4]
         for i in range(len(ax)):
