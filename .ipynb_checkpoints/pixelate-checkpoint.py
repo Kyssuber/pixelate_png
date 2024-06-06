@@ -78,24 +78,31 @@ class main_image:
     def trim_image(self):
 
         #reshape the array to (number of pixels, number of channels)
-        pixels = self.img_array.reshape(-1, self.img_array.shape[2])
+        try:
+            pixels = self.img_array.reshape(-1, self.img_array.shape[2])
+        
+            #find the most common color (assumed to be the background color)
+            unique_colors, counts = np.unique(pixels, axis=0, return_counts=True)
+            background_color = unique_colors[counts.argmax()]
+    
+            #create new image with the background color (only that background, I assume)
+            bg = Image.new(self.img_only.mode, self.img_only.size, tuple(background_color))
 
-        #find the most common color (assumed to be the background color)
-        unique_colors, counts = np.unique(pixels, axis=0, return_counts=True)
-        background_color = unique_colors[counts.argmax()]
+        except:
+            bg = Image.new(self.img_only.mode, self.img_only.size, self.img_only.getpixel((0,0)))
 
-        #create new image with the background color (only that background, I assume)
-        bg = Image.new(self.img_only.mode, self.img_only.size, tuple(background_color))
-
+        
         #compute the difference (i.e., subtract background from image)
         diff = ImageChops.difference(self.img_only, bg)
 
+        #this and the threshold step help to strongly differentiate between the image contents and the background...I guess. 
+        
         #convert the difference to grayscale
         diff = diff.convert('L')
 
         # Threshold the difference image to create a binary image
         threshold = 1  # Adjust threshold value as needed
-        diff = diff.point(lambda p: p > threshold and 255)
+        diff = diff.point(lambda p: p > threshold and 255)  #pixels greater than threshold set to white (255), pixels less than threshold set to black (0)
 
         #get the bounding box of the non-background region (in rectangular shape)
         bbox = diff.getbbox()
